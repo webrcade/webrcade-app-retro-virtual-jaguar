@@ -415,21 +415,12 @@ export class Emulator extends RetroAppWrapper {
   }
 
   // Called from the C core (EM_JS, wrc_get_use_real_bios) once at load --
-  // cartridge-only; the core ignores this for CD content (see
-  // getCdBootMode()). HLE (false) is the core's own default.
+  // one switch shared by cart and CD content alike (CD's "Auto" boot mode
+  // was identical to "Real BIOS" in the core anyway, so there was nothing
+  // a separate 3-way CD-only setting actually distinguished). HLE (false)
+  // is the core's own default.
   getUseRealBios() {
     return this.getProps().useRealBios === true;
-  }
-
-  // Called from the C core (EM_JS, wrc_get_cd_boot_mode) once at load --
-  // CD-only, overrides getUseRealBios() for CD content. Return value
-  // matches the EM_JS side: 0 = hle, 1 = auto, 2 = bios.
-  getCdBootMode() {
-    switch (this.getProps().cdBootMode) {
-      case 'auto': return 1;
-      case 'bios': return 2;
-      default: return 0;
-    }
   }
 
   async saveState() {

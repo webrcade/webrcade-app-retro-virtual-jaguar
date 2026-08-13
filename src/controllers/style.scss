@@ -1,0 +1,122 @@
+.controllers-screen {
+  position: absolute;
+  display: flex;
+  z-index: 51;
+  top: 0px;
+  right: 0px;
+  left: 0px;
+  bottom: 0px;
+  align-items: center;
+
+  &-inner {
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    max-width: 1920px;
+    margin: 0 auto;
+    position: relative;
+
+    &-controllers {
+      display: flex;
+      flex-flow: row;
+      justify-content: space-between;
+    }
+  }
+}
+
+.controller {
+  // Same structure as a5200/coleco: flex column of rows, background image
+  // sized by width alone (height follows the image's own aspect ratio),
+  // buttons positioned via row/button margins tuned to the artwork --
+  // not absolute percentage positioning.
+  display: flex;
+  flex-direction: column;
+  margin: 1.5rem 3rem;
+  background-repeat: no-repeat;
+  background-size: 30rem;
+  width: 30rem;
+  height: 18.875rem;
+  // border: 1px solid red;
+
+  &-row {
+    display: flex;
+    flex-direction: row;
+    margin-left: 8.33rem;
+    margin-top: .9rem;
+
+    &-button {
+      margin-right: 1.39rem;
+    }
+  }
+
+  &-first-row {
+    margin-top: 3.13rem;
+  }
+
+  &-description-row {
+    font-size: 1.25rem;
+    margin-top: 3rem;
+    margin-left: .8rem;
+    margin-right: .8rem;
+    overflow: hidden;
+    white-space: nowrap;
+    display: block;
+    text-overflow: ellipsis;
+    text-align: center;
+    opacity: 0;
+  }
+}
+
+.controller-image-button {
+  // Fix issue on Android where iframe is blue on exit
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: 3.5rem;
+  height: 1.8rem;
+  border-radius: .5rem;
+  background-color: transparent;
+  color: white;
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+  opacity: .6;
+  // border: 1px solid red;
+
+  &>div {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &:focus {
+    outline: none;
+    background-color: red;
+    transition: 0.4s;
+    opacity: .5;
+  }
+
+  @media (hover) {
+    &:hover {
+      outline: none;
+      background-color: #292929;
+      transition: 0.4s;
+      opacity: .8;
+    }
+
+    &:hover:focus {
+      opacity: .75;
+      transition: 0.4s;
+      background-color: #191919;
+    }
+  }
+
+  &:active {
+    outline: none;
+  }
+}
+
+.description-fade-in {
+  opacity: 1;
+  transition: opacity .35s ease-in;
+}

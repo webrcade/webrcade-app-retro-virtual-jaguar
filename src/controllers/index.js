@@ -110,6 +110,7 @@ export class Controller extends Component {
         style={{
           backgroundImage: "url(" + JaguarController + ")",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         {keys.map((keyRow, r) => (
           <div className={"controller-row" + (r === 0 ? " controller-first-row" : "")} key={r}>
@@ -206,6 +207,17 @@ export class ControllersScreen extends Screen {
   handleKeyDownEvent = (e) => {
     const { controllerIndex, row, col } = this.state;
     const { emulator, onSelect } = this.props;
+
+    // Control opens this screen (see emulator/index.js's sendInput()) --
+    // toggle behavior means pressing it again while already open closes
+    // it, same as Escape below. This listener is attached directly to
+    // document for as long as this screen is mounted, independent of
+    // controllers.setEnabled()/the paused display loop, so it works even
+    // though the emulator's own Control handling can't run while paused.
+    if (e.code === KCODES.CONTROL_LEFT || e.code === KCODES.CONTROL_RIGHT) {
+      this.close();
+      return;
+    }
 
     if (e.code === KCODES.SPACE_BAR || e.code === KCODES.ENTER) {
       const keys = [
@@ -312,7 +324,7 @@ export class ControllersScreen extends Screen {
       <>
         <WebrcadeContext.Provider value={screenContext}>
           <div className={screenStyles['screen-transparency']} />
-          <div className={"controllers-screen"}>
+          <div className={"controllers-screen"} onClick={() => this.close()}>
             <div className={'controllers-screen-inner ' + screenStyles.screen}>
               <div className={"controllers-screen-inner-controllers"}>
                 {controllerIndex === 0 ? controller : <div />}

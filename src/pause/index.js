@@ -194,6 +194,7 @@ export class EmulatorPauseScreen extends Component {
           <JaguarSettingsEditor
             emulator={emulator}
             onClose={closeCallback}
+            showOnScreenControls={true}
           />
         ) : null}
         {mode === ModeEnum.CHEATS ? (

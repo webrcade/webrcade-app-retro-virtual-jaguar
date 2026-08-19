@@ -39,7 +39,8 @@ export class GamepadControlsTab extends ControlsTab {
 
     return (
       <>
-        {this.renderControl('start', 'Show Keypad')}
+        {this.renderControls('ltrig', 'ranalog', 'Show Keypad')}
+        {this.renderControl('start', 'Option')}
         {this.renderControl('select', 'Pause')}
         {this.renderControl('dpad', 'Move')}
         {xName && this.renderControl('x', xName)}
@@ -67,10 +68,13 @@ export class KeyboardControlsTab extends ControlsTab {
     const yName = getName("y", mappings, descriptions);
     const lbName = getName("lb", mappings, descriptions);
     const rbName = getName("rb", mappings, descriptions);
+    const ltName = getName("lt", mappings, descriptions);
+    const rtName = getName("rt", mappings, descriptions);
 
     return (
       <>
-        {this.renderKey('Enter', 'Show Keypad')}
+        {this.renderKey('ControlLeft', 'Show Keypad')}
+        {this.renderKey('Enter', 'Option')}
         {this.renderKey('ShiftRight', 'Pause')}
         {this.renderKey('ArrowUp', 'Up')}
         {this.renderKey('ArrowDown', 'Down')}
@@ -79,9 +83,11 @@ export class KeyboardControlsTab extends ControlsTab {
         {xName && this.renderKey('KeyZ', xName)}
         {aName && this.renderKey('KeyX', aName)}
         {bName && this.renderKey('KeyC', bName)}
-        {yName && this.renderKey('KeyA', yName)}
-        {lbName && this.renderKey('KeyQ', lbName)}
-        {rbName && this.renderKey('KeyW', rbName)}
+        {lbName && this.renderKey('KeyA', lbName)}
+        {yName && this.renderKey('KeyS', yName)}
+        {rbName && this.renderKey('KeyD', rbName)}
+        {ltName && this.renderKey('KeyQ', ltName)}
+        {rtName && this.renderKey('KeyE', rtName)}
         {this.renderKey('Digit1', getNameForValue('1', descriptions))}
         {this.renderKey('Digit2', getNameForValue('2', descriptions))}
         {this.renderKey('Digit3', getNameForValue('3', descriptions))}

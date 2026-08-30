@@ -208,12 +208,20 @@ export class ControllersScreen extends Screen {
     const { controllerIndex, row, col } = this.state;
     const { emulator, onSelect } = this.props;
 
-    // Control opens this screen (see emulator/index.js's sendInput()) --
-    // toggle behavior means pressing it again while already open closes
-    // it, same as Escape below. This listener is attached directly to
-    // document for as long as this screen is mounted, independent of
-    // controllers.setEnabled()/the paused display loop, so it works even
-    // though the emulator's own Control handling can't run while paused.
+    // Ignore OS auto-repeat. Holding Control a moment too long after a
+    // fresh press fires additional native keydown events for the same
+    // still-held key (e.repeat === true); without this guard the very
+    // first repeat would hit the toggle-close check below.
+    if (e.repeat) return;
+
+    // Control toggles this screen closed (see emulator/index.js's
+    // sendInput(), where the initial *open* happens only after Control is
+    // released -- by the time this screen is mounted, Control is always
+    // already up, so any keydown seen here is a genuine new press). This
+    // listener is attached directly to document for as long as this screen
+    // is mounted, independent of controllers.setEnabled()/the paused
+    // display loop, so it works even though the emulator's own Control
+    // handling can't run while paused.
     if (e.code === KCODES.CONTROL_LEFT || e.code === KCODES.CONTROL_RIGHT) {
       this.close();
       return;

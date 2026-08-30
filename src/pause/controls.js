@@ -40,6 +40,7 @@ export class GamepadControlsTab extends ControlsTab {
     return (
       <>
         {this.renderControls('ltrig', 'ranalog', 'Show Keypad')}
+        {this.renderControl('ranalog', 'Radial Keypad')}
         {this.renderControl('start', 'Option')}
         {this.renderControl('select', 'Pause')}
         {this.renderControl('dpad', 'Move')}

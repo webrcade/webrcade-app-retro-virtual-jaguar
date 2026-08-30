@@ -198,11 +198,13 @@ export class Emulator extends RetroAppWrapper {
     // held -- same pending-flag pattern Apple II/Apple IIGS/Commodore
     // 8-bit/DOSBox Pure use for their own virtual-keyboard equivalent.
     this.gamepadVkPending = false;
-    // Edge-detects CONTROL_KEY (see sendInput()) the same way -- Control
-    // is a plain keydown, not a combo synthesized into CIDS.ESCAPE, so
-    // it needs its own rising-edge check rather than handleEscape()'s
-    // wait-for-release pattern.
+    // Edge-detects CONTROL_KEY (rising edge starts the wait-for-release
+    // below, matching handleEscape()'s own pattern).
     this.controlKeyDown = false;
+    // Latched true if Shift joins Control before release -- see the
+    // CONTROL_KEY block in sendInput(). Read once at release to decide
+    // whether to open the grid keypad or redirect to the pause menu.
+    this.controlKeyEscalated = false;
 
     // Drives the upper-right touch overlay (keypad/pause icons) --
     // same mechanism as Apple II/melonDS's TouchOverlay: latch the first
@@ -400,19 +402,13 @@ export class Emulator extends RetroAppWrapper {
       // Same fake-key-event reset a5200 does: clears the Enter/Space
       // keydown that triggered this call, so ControllersScreen's own
       // handler doesn't immediately fire again for the same keypress.
-      // Control gets the same treatment for a different reason: setEnabled
-      // (false) detaches keyToControlMapping's keydown/keyup listeners for
-      // as long as this screen is open, so if the physical Control key is
-      // released while it's open (the common case -- press to open, then
-      // let go), that release is never observed and isControlDown(
-      // CONTROL_KEY) reads stuck-true even after the key is no longer
-      // held. Without this reset, the next real press+release cycle just
-      // clears the stale state instead of opening anything, making it
-      // look like Control has to be pressed twice.
+      // Control doesn't need the same reset: every path that calls
+      // showControllers() waits for its trigger key to actually release
+      // first (see handleEscape()/sendInput()), so Control is always
+      // already up by the time setEnabled(false) runs here -- no
+      // stuck-true state to clear.
       controllers.addFakeKeyEvent(KCODES.SPACE_BAR, false);
       controllers.addFakeKeyEvent(KCODES.ENTER, false);
-      controllers.addFakeKeyEvent(KCODES.CONTROL_LEFT, false);
-      controllers.addFakeKeyEvent(KCODES.CONTROL_RIGHT, false);
     }
 
     setTimeout(() => {
@@ -560,18 +556,49 @@ export class Emulator extends RetroAppWrapper {
 
     // Control key opens the grid keypad screen -- keyboard equivalent
     // of LTRIG+RANALOG (handleEscape()), player 1/keyboard only, same
-    // scope as the other keyboard-only bindings in this file. A plain
-    // keydown, not a combo synthesized into CIDS.ESCAPE, so it needs its
-    // own rising-edge check here rather than handleEscape()'s pattern.
+    // scope as the other keyboard-only bindings in this file. Waits for
+    // release before showing anything, matching every other trigger here
+    // (handleEscape()'s LTRIG+RANALOG and the base class's own CIDS.ESCAPE
+    // handling) instead of acting immediately on keydown: acting
+    // immediately left the freshly-opened screen's own listener exposed to
+    // the very keystroke that opened it (chased through several fixes
+    // earlier), and gave no clean way to redirect to the real pause menu if
+    // Shift joins mid-press (the Ctrl+Shift muscle-memory case) without
+    // extra per-screen plumbing. Waiting sidesteps both: nothing is on
+    // screen while the key is still held, and there's one clean decision
+    // point -- did Shift join before release? -- to pick keypad vs. pause.
     // Only handles opening -- this method structurally can't run while
     // paused (see the radial-stick comment above), so closing again on a
-    // second Control press is handled directly by ControllersScreen's own
-    // document-level listener instead (controllers/index.js), which stays
-    // active for as long as the screen is mounted.
+    // second Control press once the screen is open is handled directly by
+    // ControllersScreen's own document-level listener instead
+    // (controllers/index.js), which stays active for as long as the screen
+    // is mounted, unrelated to this.
+    //
+    // Uses its own release-wait loop rather than
+    // controllers.waitUntilControlReleased() (used elsewhere in this file)
+    // because it also needs to keep sampling CIDS.ESCAPE (i.e. Shift
+    // joining Control) on every tick, not just check one condition at the
+    // end -- and this loop has to be self-driven via setTimeout regardless,
+    // since sendInput() itself stops being called the moment pause(true)
+    // succeeds (pause() halts the displayLoop that drives it).
     if (controller === 0 && keyToControlMapping) {
       const controlDown = keyToControlMapping.isControlDown(CONTROL_KEY);
       if (controlDown && !this.controlKeyDown && this.pause(true)) {
-        this.showControllers(0);
+        this.controlKeyEscalated = false;
+        const CONTROL_KEY_WAIT_INTERVAL = 50;
+        const waitForControlKeyRelease = () => {
+          if (keyToControlMapping.isControlDown(CIDS.ESCAPE)) {
+            this.controlKeyEscalated = true;
+          }
+          if (keyToControlMapping.isControlDown(CONTROL_KEY)) {
+            setTimeout(waitForControlKeyRelease, CONTROL_KEY_WAIT_INTERVAL);
+          } else if (this.controlKeyEscalated) {
+            this.showPauseMenu();
+          } else {
+            this.showControllers(0);
+          }
+        };
+        setTimeout(waitForControlKeyRelease, CONTROL_KEY_WAIT_INTERVAL);
       }
       this.controlKeyDown = controlDown;
     }

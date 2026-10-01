@@ -422,30 +422,60 @@ export class Emulator extends RetroAppWrapper {
     }, this.showPauseDelay);
   }
 
-  // Two things intercepted here, both via the same base-class hook
-  // (RetroAppWrapper's pollControls() calls this whenever the
-  // LTRIG+combo-synthesized CIDS.ESCAPE is down, and skips its own
-  // default Escape/pause-menu handling for the frame if this returns
-  // truthy):
+  // a5200's own trick: suppress the pause-menu-open gesture while a
+  // keypad selection is actively held, so releasing the button that made
+  // a keypad selection can't also spuriously open the pause menu.
   //
-  // 1. LTRIG+RANALOG opens the grid keypad screen -- same gesture
-  //    Apple II/Apple IIGS/Commodore 8-bit/DOSBox Pure already use for
-  //    their own virtual keyboards, adopted here for consistency (see
-  //    [[project_jaguar_port_todo]]). Replaces Start, which no longer
-  //    does anything special (see sendInput()). Waits for the
-  //    already-down CIDS.ESCAPE to release before acting, same
-  //    pending-flag pattern those apps use, so it fires once per
-  //    press-and-release rather than repeatedly while held.
-  // 2. a5200's own trick: suppress the pause-menu-open gesture (not
-  //    just the keypad-screen one) while a keypad selection is
-  //    actively held, so releasing the button that made a keypad
-  //    selection can't also spuriously open the pause menu.
+  // WRC - this used to ALSO intercept LTRIG+RANALOG here to open the grid
+  // keypad screen, but that was dead code: this hook is only invoked by
+  // the base class's pollControls() when CIDS.ESCAPE is already down, and
+  // CIDS.ESCAPE's synthesis was narrowed to just LTRIG+LANALOG (see
+  // webrcade-app-common/src/input/controls.js) - meaning the LTRIG+RANALOG
+  // branch below could never actually be true when reached. Same
+  // regression class as retro-mame-apple2/apple2gs/retro-commodore-8bit/
+  // retro-dosbox-pure/scummvm. Moved to its own pollControls() override
+  // below, using the shared CIDS.WRC_CUSTOM synthetic control instead.
   handleEscape(controllers) {
-    if (controllers.isControlDown(0, CIDS.LTRIG) && controllers.isControlDown(0, CIDS.RANALOG)) {
+    return !!this.virtualKeypad[0];
+  }
+
+  // WRC - per docs/escape-hack-audit.md's decision rule, isStartEscapeHackEnabled()
+  // additionally requires real right-analog gameplay use (the accidental-RT+RA
+  // risk it guards against) - RANALOG here is only the radial keypad wheel's
+  // UI input, never a real gameplay control, so that condition fails and this
+  // stays at the inherited `false` default (no override needed).
+  //
+  // isSelectEscapeHackEnabled() only requires a real, extended-hold RTRIG
+  // function (decided per-game via the editor's own remappable
+  // a/b/x/y/lb/rb/lt/rt mappings, see MAPPABLE_BUTTONS/sendInput() below, not
+  // fixed Jaguar hardware - same reasoning DOSBox Pure already uses for its
+  // own ltrig/rtrig) AND Select being meaningful (it is - hardcoded to the
+  // real Pause function). Left true unconditionally rather than trying to
+  // decide per-game: harmless for a game that doesn't map the trigger to
+  // anything (escapeCount only climbs while the trigger is actually held),
+  // and protects RT+LA (Pause) from misfiring during a real extended hold for
+  // one that does.
+  isSelectEscapeHackEnabled() {
+    return true;
+  }
+
+  // WRC - LTRIG+RANALOG opens the grid keypad screen, via the shared
+  // CIDS.WRC_CUSTOM synthetic control (see its own comment in
+  // @webrcade/app-common/src/input/controls.js) rather than the old
+  // handleEscape()/CIDS.ESCAPE interception (removed above) - that combo
+  // stopped synthesizing CIDS.ESCAPE, so this app now uses the control
+  // reserved to replace it instead. Replaces Start, which no longer does
+  // anything special (see sendInput()). Waits for CIDS.WRC_CUSTOM's own
+  // release before acting, same pending-flag pattern as before, so it
+  // fires once per press-and-release rather than repeatedly while held.
+  pollControls() {
+    const { controllers } = this;
+    super.pollControls();
+    if (!this.paused && controllers.isControlDown(0, CIDS.WRC_CUSTOM)) {
       if (!this.gamepadVkPending) {
         this.gamepadVkPending = true;
         controllers
-          .waitUntilControlReleased(0, CIDS.ESCAPE)
+          .waitUntilControlReleased(0, CIDS.WRC_CUSTOM)
           .then(() => {
             this.gamepadVkPending = false;
             if (this.pause(true)) {
@@ -453,10 +483,7 @@ export class Emulator extends RetroAppWrapper {
             }
           });
       }
-      return true;
     }
-
-    return !!this.virtualKeypad[0];
   }
 
   // Which keypad key (if any) is currently held, as a packed numeric ID
@@ -623,7 +650,18 @@ export class Emulator extends RetroAppWrapper {
       this.INP_LBUMP | this.INP_RBUMP | this.INP_LTRIG | this.INP_RTRIG |
       this.INP_START);
 
-    if (!keypadValue && controllers && controllers.isControlDown(controller, CIDS.START)) {
+    // WRC - masks against this.virtualKeypad[controller] specifically,
+    // not the broader keypadValue - a real bug found during testing:
+    // getKeypadValue() also returns truthy from its per-game
+    // MAPPABLE_BUTTONS fallback (e.g. if this game's own editor mapping
+    // happens to assign RTRIG to a keypad digit), completely unrelated to
+    // an actual on-screen keypad selection being held open. Masking on
+    // the broader keypadValue meant RT+RA (Option) got silently swallowed
+    // any time RTRIG alone happened to resolve to a mapped digit -
+    // virtualKeypad[controller] is the exact condition this mask is
+    // actually meant to guard (see the comment above), so use that
+    // instead.
+    if (!this.virtualKeypad[controller] && controllers && controllers.isControlDown(controller, CIDS.START)) {
       input |= this.INP_START;
     }
 

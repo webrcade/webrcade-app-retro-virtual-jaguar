@@ -73,6 +73,8 @@ export class EmulatorPauseScreen extends Component {
       return null;
     }
 
+    const type = emulator.getProps().type;
+
     const additionalButtons = [
       <PauseScreenButton
         key="controls"
@@ -90,7 +92,7 @@ export class EmulatorPauseScreen extends Component {
         key="settings"
         imgSrc={SettingsAppWhiteImage}
         buttonRef={ADDITIONAL_BUTTON_REFS[1]}
-        label="Settings"
+        label={type === APP_TYPE_KEYS.RETRO_VIRTUAL_JAGUAR_CD ? "Jaguar CD Settings" : "Jaguar Settings"}
         onHandlePad={(focusGrid, e) =>
           focusGrid.moveFocus(e.type, ADDITIONAL_BUTTON_REFS[1])
         }
